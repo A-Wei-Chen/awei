@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加法與減法</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        .question {
+            margin-bottom: 30px;
+        }
+
+        .question p {
+            margin: 0 0 10px;
+        }
+
+        .question select {
+            font-size: 20px;
+            margin-top: 10px;
+            padding: 5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 20px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+        }
+
+        select, input {
+            padding: 5px;
+            font-size: 20px;
+            margin-bottom: 10px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>加法與減法自我挑戰</h1>
+    <p>請設定測驗條件，然後生成測驗頁面！</p>
+
+    <div id="configSection">
+        <h2>測驗設定</h2>
+        <label for="operation">運算類型：</label>
+        <select id="operation">
+            <option value="add">加法</option>
+            <option value="subtract">減法</option>
+        </select>
+
+        <label for="numQuestions">題目數量：</label>
+        <select id="numQuestions">
+            <option value="10">10題</option>
+            <option value="15">15題</option>
+            <option value="20">20題</option>
+            <option value="25">25題</option>
+        </select>
+
+        <label for="range">數值範圍：</label>
+        <select id="range">
+            <option value="10">10以內</option>
+            <option value="20">20以內</option>
+            <option value="100">100以內</option>
+        </select>
+
+        <label for="numOptions">每題選項數量：</label>
+        <select id="numOptions">
+            <option value="3">3個選項</option>
+            <option value="4" selected>4個選項</option>
+            <option value="5">5個選項</option>
+        </select>
+
+        <button onclick="generateQuiz()">生成測驗</button>
+    </div>
+
+    <form id="quizForm" class="hidden">
+        <h2>您的數學測驗</h2>
+        <div id="questions"></div>
+        <button type="button" onclick="submitQuiz()">提交測驗</button>
+        <button type="button" onclick="resetQuiz()">重新開始</button>
+    </form>
+
+    <div id="result" class="result hidden">
+        <button onclick="resetQuiz()">重新開始</button>
+    </div>
+
+    <script>
+        const configSection = document.getElementById('configSection');
+        const quizForm = document.getElementById('quizForm');
+        const questionsContainer = document.getElementById('questions');
+        const resultDiv = document.getElementById('result');
+
+        let correctAnswers = [];
+        let startTime;
+
+        // 動態生成測驗題目
+        function generateQuestion(index, operation, range, numOptions) {
+            let num1 = Math.floor(Math.random() * range) + 1; // 1 到 range 的隨機數
+            let num2 = Math.floor(Math.random() * range) + 1;
+
+            let correctAnswer;
+            if (operation === 'add') {
+                correctAnswer = num1 + num2;
+            } else if (operation === 'subtract') {
+                // 確保是大數減小數
+                if (num1 < num2) [num1, num2] = [num2, num1];
+                correctAnswer = num1 - num2;
+            }
+
+            // 確保選項唯一，且包含正確答案
+            let options = new Set();
+            options.add(correctAnswer);
+            while (options.size < numOptions) {
+                const randomOption = Math.floor(Math.random() * (range + 5)) + 1; // 隨機生成正數
+                if (randomOption > 0) {
+                    options.add(randomOption);
+                }
+            }
+
+            // 排序選項
+            options = Array.from(options).sort((a, b) => a - b); // 對選項按數字大小排序
+
+            // 創建題目 HTML
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'question';
+            questionDiv.innerHTML = `
+                <p>第 ${index + 1} 題：${num1} ${operation === 'add' ? '+' : '-'} ${num2} =</p>
+                <select name="question${index}">
+                    <option value="" disabled selected>請選擇答案</option>
+                    ${options.map(option => `<option value="${option}">${option}</option>`).join('')}
+                </select>
+            `;
+            questionsContainer.appendChild(questionDiv);
+
+            return correctAnswer;
+        }
+
+        // 生成測驗
+        function generateQuiz() {
+            const operation = document.getElementById('operation').value;
+            const numQuestions = parseInt(document.getElementById('numQuestions').value, 10);
+            const range = parseInt(document.getElementById('range').value, 10);
+            const numOptions = parseInt(document.getElementById('numOptions').value, 10);
+
+            // 清空舊內容
+            questionsContainer.innerHTML = '';
+            correctAnswers = [];
+
+            for (let i = 0; i < numQuestions; i++) {
+                correctAnswers.push(generateQuestion(i, operation, range, numOptions));
+            }
+
+            // 切換到測驗模式
+            configSection.classList.add('hidden');
+            quizForm.classList.remove('hidden');
+            resultDiv.classList.add('hidden');
+
+            // 記錄開始時間
+            startTime = new Date();
+        }
+
+        // 提交測驗
+        function submitQuiz() {
+            const answers = new FormData(document.getElementById('quizForm'));
+            const incorrect = [];
+            const endTime = new Date();
+
+            correctAnswers.forEach((correctAnswer, index) => {
+                const userAnswer = answers.get(`question${index}`);
+                if (parseInt(userAnswer, 10) !== correctAnswer) {
+                    incorrect.push(index + 1); // 題號從1開始
+                }
+            });
+
+            // 計算測驗用時
+            const timeTaken = parseInt((endTime - startTime) / 1000, 10);
+
+            // 顯示結果
+            resultDiv.classList.remove('hidden');
+            resultDiv.innerHTML = `
+                <p>測驗完成！</p>
+                <p>總共用時：${timeTaken} 秒</p>
+                ${incorrect.length > 0
+                    ? `<p>答錯的題目：${incorrect.join(', ')}</p>`
+                    : '<p>全部答對！</p>'}
+                <button onclick="resetQuiz()">重新開始</button>
+            `;
+            window.scrollTo(0, document.body.scrollHeight); // 滾動到結果區
+        }
+
+        // 重設測驗
+        function resetQuiz() {
+            location.reload(); // 重新整理頁面
+        }
+    </script>
+</body>
+</html>
