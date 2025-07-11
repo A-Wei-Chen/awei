@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>數學加減測驗</title>
+    <title>數學測驗：10 減個位數</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,15 +28,17 @@
             background-color: #f9f9f9;
         }
         button {
-            padding: 10px;
+            padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
+            display: block;
+            margin: 20px auto;
         }
     </style>
 </head>
 <body>
-    <h1>數學測驗：10以內的加減題</h1>
-    <p>請回答以下問題，完成後點擊提交查看結果。</p>
+    <h1>數學測驗：10 減個位數</h1>
+    <p>請回答以下問題，完成測驗後點擊提交查看結果。</p>
     <form id="quizForm">
         <div id="questions"></div>
         <button type="button" onclick="submitQuiz()">提交測驗</button>
@@ -50,19 +52,19 @@
 
         let startTime;
 
-        // 隨機生成一個加減題
+        // 隨機生成一個「10 - 個位數」的題目
         function generateQuestion(index) {
-            const num1 = Math.floor(Math.random() * 11); // 隨機生成 0-10
-            const num2 = Math.floor(Math.random() * 11);
-            const operator = Math.random() > 0.5 ? '+' : '-'; // 隨機選擇加或減
-            
-            const correctAnswer = operator === '+' ? num1 + num2 : num1 - num2;
+            const num2 = Math.floor(Math.random() * 10) + 1; // 隨機生成 1-9
+            const correctAnswer = 10 - num2;
 
             // 隨機生成錯誤選項
             let options = new Set();
             options.add(correctAnswer); // 確保包含正確答案
             while (options.size < 4) {
-                options.add(correctAnswer + Math.floor(Math.random() * 11 - 5)); // 隨機生成類似的錯誤答案
+                const randomOption = correctAnswer + Math.floor(Math.random() * 5) - 2; // 生成類似的錯誤答案
+                if (randomOption >= 0 && randomOption <= 10) {
+                    options.add(randomOption);
+                }
             }
             options = Array.from(options).sort(() => Math.random() - 0.5); // 打亂選項順序
 
@@ -70,8 +72,8 @@
             const questionDiv = document.createElement('div');
             questionDiv.className = 'question';
             questionDiv.innerHTML = `
-                <p>第 ${index + 1} 題: ${num1} ${operator} ${num2} = ?</p>
-                ${options.map((option, i) => `
+                <p>第 ${index + 1} 題: 10 - ${num2} = ?</p>
+                ${options.map(option => `
                     <label>
                         <input type="radio" name="question${index}" value="${option}">
                         ${option}
@@ -98,7 +100,7 @@
             correctAnswers.forEach((correctAnswer, index) => {
                 const userAnswer = answers.get(`question${index}`);
                 if (parseInt(userAnswer, 10) !== correctAnswer) {
-                    incorrect.push(index + 1); // 題目是從1開始的
+                    incorrect.push(index + 1); // 題號從1開始
                 }
             });
 
@@ -110,7 +112,7 @@
             resultDiv.innerHTML = `
                 <p>測驗完成！</p>
                 <p>總共用時：${timeTaken} 秒</p>
-                ${incorrect.length > 0 ? `<p>答錯的題目：${incorrect.join(', ')}</p>` : '<p>全部答對！</p>'}
+                ${incorrect.length > 0 ? `<p>答錯的題號：${incorrect.join(', ')}</p>` : '<p>全部答對！</p>'}
             `;
             window.scrollTo(0, document.body.scrollHeight); // 滾動到結果區域
         }
