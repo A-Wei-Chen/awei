@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加法遊戲 - 拖曳填答</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(to bottom, #f9fbe7, #c5e1a5); /* 活潑淡雅的漸層背景 */
+            background-attachment: fixed;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin: 20px 0;
+            text-align: center;
+            color: #558b2f; /* 綠色標題 */
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3); /* 增加立體感 */
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 每行兩題 */
+            gap: 20px;
+            width: 70%;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        .question {
+            font-size: 1.8em;
+            text-align: center;
+            border: 2px solid #33691e; /* 深綠色邊框 */
+            padding: 10px 20px;
+            border-radius: 10px;
+            background-color: #dcedc8; /* 柔和綠色背景 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .droppable {
+            width: 80px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px dashed #558b2f; /* 深綠色虛線邊框 */
+            background-color: #f1f8e9; /* 淡綠色背景 */
+            border-radius: 5px;
+        }
+
+        .answers {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .answer {
+            font-size: 1.5em;
+            text-align: center;
+            border: 2px solid #333;
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #aed581; /* 淡綠色 */
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s ease, background-color 0.3s ease;
+        }
+
+        .answer:hover {
+            transform: scale(1.1); /* 滑鼠懸停放大 */
+        }
+
+        .answer:active {
+            cursor: grabbing;
+        }
+
+        .timer, .restart-button, .check-button, .save-button {
+            font-size: 1.2em;
+            margin: 10px 5px;
+        }
+
+        .restart-button, .check-button, .save-button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .restart-button:hover, .check-button:hover, .save-button:hover {
+            background: #0056b3;
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #444;
+            text-align: center;
+        }
+
+        .result span {
+            font-weight: bold;
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>加法遊戲 - 拖曳填答</h1>
+    <div class="game-container" id="game-container"></div>
+    <div class="answers" id="answers"></div>
+    <div class="timer" id="timer">操作時間：0 秒</div>
+    <div>
+        <button class="check-button" id="check-button">送出檢查</button>
+        <button class="restart-button" id="restart-button">重新開始</button>
+        <button class="save-button" id="save-button" style="display: none;">下載結果</button>
+    </div>
+    <div class="result" id="result"></div>
+
+    <script>
+        let startTime, timerInterval;
+        let draggedAnswer = null;
+
+        const gameContainer = document.getElementById('game-container');
+        const answersContainer = document.getElementById('answers');
+        const timerDisplay = document.getElementById('timer');
+        const restartButton = document.getElementById('restart-button');
+        const checkButton = document.getElementById('check-button');
+        const saveButton = document.getElementById('save-button');
+        const resultDisplay = document.getElementById('result');
+
+        // 初始化遊戲
+        function initGame() {
+            clearInterval(timerInterval);
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+
+            resultDisplay.textContent = ''; // 清除檢查結果
+            saveButton.style.display = 'none'; // 隱藏下載按鈕
+            gameContainer.innerHTML = '';
+            answersContainer.innerHTML = '';
+
+            const questions = [];
+            const answers = [];
+
+            // 產生 10 題隨機加法題目
+            for (let i = 0; i < 10; i++) {
+                const num1 = getRandomNonZeroDigit();
+                const num2 = getRandomNonZeroDigit();
+                const answer = num1 + num2;
+
+                // 記錄題目與答案
+                questions.push({ num1, num2, answer });
+                answers.push(answer);
+            }
+
+            // 亂序答案
+            shuffleArray(answers);
+
+            // 顯示題目
+            questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.dataset.index = index;
+
+                questionDiv.innerHTML = `
+                    <span>${q.num1} + ${q.num2}</span>
+                    <div class="droppable" data-answer="${q.answer}"></div>
+                `;
+
+                gameContainer.appendChild(questionDiv);
+            });
+
+            // 顯示答案
+            answers.forEach((ans) => {
+                const answerDiv = document.createElement('div');
+                answerDiv.className = 'answer';
+                answerDiv.textContent = ans;
+
+                // 設置拖曳事件
+                answerDiv.draggable = true;
+                answerDiv.addEventListener('dragstart', (e) => {
+                    draggedAnswer = e.target;
+                });
+
+                answersContainer.appendChild(answerDiv);
+            });
+
+            // 設置放置區域
+            const droppables = document.querySelectorAll('.droppable');
+            droppables.forEach((droppable) => {
+                droppable.addEventListener('dragover', (e) => e.preventDefault()); // 允許放置
+                droppable.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    if (!droppable.textContent.trim() && draggedAnswer) {
+                        droppable.textContent = draggedAnswer.textContent;
+                        draggedAnswer.remove(); // 移除已放置的答案
+                        draggedAnswer = null;
+                    }
+                });
+            });
+        }
+
+        // 更新計時器
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerDisplay.textContent = `操作時間：${elapsed} 秒`;
+        }
+
+        // 隨機取得 1-9 的數字
+        function getRandomNonZeroDigit() {
+            return Math.floor(Math.random() * 9) + 1;
+        }
+
+        // 亂序陣列
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // 檢查答案
+        function checkAnswers() {
+            const droppables = document.querySelectorAll('.droppable');
+            let incorrectQuestions = [];
+            let resultText = '';
+
+            droppables.forEach((droppable, index) => {
+                const userAnswer = droppable.textContent.trim();
+                const correctAnswer = droppable.dataset.answer;
+
+                if (userAnswer !== correctAnswer) {
+                    incorrectQuestions.push(index + 1); // 題號從 1 開始
+                }
+            });
+
+            // 顯示結果
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            if (incorrectQuestions.length === 0) {
+                resultText = `全部正確！操作時間：${elapsed} 秒`;
+                resultDisplay.innerHTML = resultText;
+            } else {
+                resultText = `錯誤題號：${incorrectQuestions.join(', ')}\n操作時間：${elapsed} 秒`;
+                resultDisplay.innerHTML = `錯誤題號：<span>${incorrectQuestions.join(', ')}</span><br>操作時間：${elapsed} 秒`;
+            }
+
+            // 顯示下載按鈕
+            saveButton.style.display = 'inline-block';
+
+            // 設定下載結果內容
+            saveButton.onclick = function () {
+                const blob = new Blob([resultText], { type: 'text/plain' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = '遊戲結果.txt';
+                link.click();
+            };
+        }
+
+        // 重新開始遊戲
+        restartButton.addEventListener('click', initGame);
+
+        // 送出檢查按鈕
+        checkButton.addEventListener('click', checkAnswers);
+
+        // 初始化
+        initGame();
+    </script>
+</body>
+</html>
